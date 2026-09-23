@@ -1,0 +1,5 @@
+# 仓库内统一以 LF 存储与检出。
+#
+# 本机 core.autocrlf=true，默认会在检出时把文件改成 CRLF，导致同一份文件在不同
+# 机器上产生满屏的换行符 diff。这条规则让工作树、索引和远端都用 LF。
+* text=auto eol=lf
