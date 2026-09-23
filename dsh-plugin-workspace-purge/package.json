@@ -1,0 +1,42 @@
+{
+  "name": "dsh-plugin-workspace-purge",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness plugin: deleting a workspace also deletes the stored sessions it accounted for, instead of leaving them Ungrouped.",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "files": [
+    "lib",
+    "README.md",
+    "cordis.patch.yml"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "workspace",
+    "session",
+    "purge"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2",
+    "@deepseek-ai/schemastery": "^3.18.2"
+  },
+  "scripts": {
+    "test": "node --test test/bundle.test.js test/index.test.js test/purge.test.js"
+  }
+}

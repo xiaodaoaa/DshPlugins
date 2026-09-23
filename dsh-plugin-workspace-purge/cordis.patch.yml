@@ -1,0 +1,8 @@
+# dsh-plugin-workspace-purge — bundle patch.
+#
+# Inserting the plugin id into the composed profile tree is what activates it.
+# `name` resolves through the profile's node_modules, where the package this
+# file ships in is installed as a direct dependency.
+- insert:
+    - id: workspace-purge
+      name: 'dsh-plugin-workspace-purge'
