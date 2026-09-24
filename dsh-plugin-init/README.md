@@ -1,8 +1,8 @@
 # dsh-plugin-init
 
-一个 DeepSeek Harness 插件，提供 `/init` 斜杠命令：把 agent 指向当前仓库，让它创建或刷新 `AGENTS.md`。
+一个 DeepSeek Harness 插件，提供 `/init` 斜杠命令：把 agent 指向当前仓库，让它创建或刷新 `CLAUDE.md`。
 
-移植自 [opencode](https://github.com/sst/opencode) 内置的 `/init` 命令。
+移植自 [Claude Code](https://claude.com/claude-code) 内置的 `/init` 命令，提示词正文逐字取自它。
 
 ```
 /init
@@ -16,7 +16,7 @@
    - `${path}` → 会话创建时记录的 cwd（`agent.session.header.cwd`，缺失时回退到宿主进程目录）
    - `$ARGUMENTS` → 用户在 `/init` 之后输入的全部内容
 3. 渲染后的提示词通过 `agent.steer(...)` 投递：agent 空闲时它开启一轮，忙碌时它落在下一个步骤边界上。
-4. 命令以一行面向人的简短结果结束；模型侧的工作就是一次普通的 agent 轮次——读仓库、写 `AGENTS.md`。
+4. 命令以一行面向人的简短结果结束；模型侧的工作就是一次普通的 agent 轮次——读仓库、写 `CLAUDE.md`。
 
 ## 安装
 
@@ -57,24 +57,27 @@ init:
 |---|---|
 | `template` | 替换打包版 `lib/template/initialize.txt` 的提示词文件路径。相对路径按宿主进程的工作目录（`process.cwd()`）解析——既不是会话的 cwd，也不是 profile 目录，所以写绝对路径最稳。它必须非空；如果模板从未提到 `$ARGUMENTS`，用户输入会被追加到末尾。 |
 
-## 与 opencode `/init` 的对应关系
+## 与 Claude Code `/init` 的对应关系
 
-| opencode | 这里 |
+提示词正文（`What to add`、`Usage notes` 两组要点、以及强制前缀那三行）**逐字取自 Claude Code 的 `/init`**。下面列出的是本插件相对原文有意做的三处改动，以及 DSH 侧的承载方式。
+
+| Claude Code `/init` | 这里 |
 |---|---|
-| `packages/opencode/src/command/index.ts` 里的 `commands[Default.INIT]` | `ctx.commands.register({ name: "init", … })` |
-| `get template() { PROMPT_INITIALIZE.replace("${path}", ctx.worktree) }` | 调用时的 `renderPrompt(template, worktree, args)` |
-| `SessionPrompt.command` 里的 `$ARGUMENTS` 替换 | `renderPrompt` 的 `replaceAll`，外加「未提及时追加」 |
-| `POST /session/:id/init` 与 TUI 的 `session.command` | 唯一的 `commands.register` 处理器；所有适配器共用它 |
-| `SessionPrompt.command` → `prompt(...)`（模型轮次） | `agent.steer(createUserMessage(...))` |
-| `Command.Event.Executed` → `Project.setInitialized` | 没有项目时间戳；注册表已经把持久化的 `command/run` / `command/done` 事件追加进会话日志 |
-| `subtask: false`（在当前会话中运行） | 相同：提示词被 steer 进当前 agent |
+| 原文没有占位符 | 加了 `${path}`（会话 cwd）与 `$ARGUMENTS`（用户输入），因为 DSH 的命令处理器需要它们才能把仓库根与 focus 传进提示词 |
+| 原文不提 `AGENTS.md` | 加了一条合并要求，因为 DSH 把 `AGENTS.md` 与 `CLAUDE.md` 当同级候选文件，两者并存且内容不同会**双双注入**、token 翻倍 |
+| 「suggest improvements to it」的保守语气 | 原样保留：已有 `CLAUDE.md` 时只建议改进，不直接重写 |
+| 强制前缀 `# CLAUDE.md` + 那两行说明 | 原样保留，写在模板末尾的代码块里 |
+| `/init` 斜杠命令 | `ctx.commands.register({ name: "init", … })`，发布给所有已合成的人类命令适配器 |
+| 命令产生模型轮次 | `agent.steer(createUserMessage(...))` |
+| 没有「已初始化」时间戳 | 相同：DSH 没有等价的项目记录，重跑 `/init` 按设计无害 |
 
 ## 设计说明
 
 - **没有客户端代码。** 命令平面在宿主侧；发现、输入提示与结果渲染都来自已合成的适配器。
 - **用 `steer`，不用 `followup`。** `@deepseek-ai/dsh-agent-loop` 的 `ReactLoop` 里三者是 `steer → send(msg, "next-step", true)`、`followup → send(msg, "next-turn", true)`、`inject → next-step` 且不唤醒。差别在消息于**下一步**还是**下一轮**被认领：忙碌的会话里 `steer` 落在当前轮的下一个步骤边界上，`followup` 要等这一轮结束；两者都会唤醒空闲 agent。命令处理器需要立刻产生模型工作，所以用 `steer`。
 - **模板在插件加载时读一次。** 缺失或空模板会让激活大声失败，而不是让第一次调用失败。
-- **没有「已初始化」状态。** opencode 在观察到 `init` 的 `command.executed` 事件时写入 `project.time.initialized`。DSH 没有等价的项目记录，而重跑 `/init` 按设计是无害的：提示词要求 agent 就地改进已有的 `AGENTS.md`。
+- **没有「已初始化」状态。** Claude Code 不写项目级时间戳，DSH 也没有等价的项目记录，而重跑 `/init` 按设计是无害的：提示词要求 agent 对已有的 `CLAUDE.md` 只建议改进。
+- **`AGENTS.md` 会被合并进来。** DSH 的 `@deepseek-ai/dsh-agent-instructions` 默认候选是 `["AGENTS.md", "CLAUDE.md"]`（外加 `.local.md` 叠加层），两者并存且内容不同时**都会被注入**。所以模板里加了一条：同目录已有 `AGENTS.md` 时合并进 `CLAUDE.md`，不要留两份。注意用户全局层只有 `$DSH_HOME/AGENTS.md` 一个文件名，没有全局 `CLAUDE.md`。
 
 ## 开发
 

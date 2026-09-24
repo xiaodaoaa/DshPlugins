@@ -85,7 +85,7 @@ duplicate loader entry id "workspace-purge" in the composed profile
 ## 已知限制
 
 - **这是不可恢复的。** 没有会话删除 API、没有回收站、没有撤销：日志用 `fs.rm` 删除。卸载插件能恢复旧行为，但恢复不了已删除的日志。
-- **删除确认框仍在说谎。** 出厂 Web 客户端问的是「将把"{name}"从工作区列表中移除。文件夹与会话记录会保留，其会话将显示在"未分组"下。」（英文 locale 为 "This removes "{name}" from the workspace list. The folder and session logs will be kept. Its sessions will appear under Ungrouped."）装上本插件后，第二句就是假的。修正它需要一个客户端半边（`dsh.client` 加 locale 覆盖），本版本有意不做；见 `AGENTS.md`。
+- **删除确认框仍在说谎。** 出厂 Web 客户端问的是「将把"{name}"从工作区列表中移除。文件夹与会话记录会保留，其会话将显示在"未分组"下。」（英文 locale 为 "This removes "{name}" from the workspace list. The folder and session logs will be kept. Its sessions will appear under Ungrouped."）装上本插件后，第二句就是假的。修正它需要一个客户端半边（`dsh.client` 加 locale 覆盖），本版本有意不做；见 `CLAUDE.md`。
 - **活跃会话会在工作区删除后存活。** 工作区被删时正处于打开或运行状态的会话会保留日志，并留在未分组。汇总行会说明保留了几个；关掉它们再删一次（第二次删除已无可清理，所以这些会话只能手工归档或删除）。
 - **派生索引会滞后，但不会坏。** SQLite FTS 索引（`@deepseek-ai/dsh-session-query-sqlite`）会在下次搜索时对账已删除的来源，投影缓存以会话 id 为键。两者都不需要人工修复。
 - **归档记账保持原样。** 被清理的会话 id 可能仍留在注册表的 `archivedSessionIds` 里。它是惰性的——归档要求会话存在——而从插件里写另一个包的领域状态比这点残留更糟。

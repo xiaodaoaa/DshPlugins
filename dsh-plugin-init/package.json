@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-init",
   "version": "0.1.0",
-  "description": "DeepSeek Harness plugin: /init writes or refreshes a repo's AGENTS.md, ported from opencode's built-in /init command.",
+  "description": "DeepSeek Harness plugin: /init writes or refreshes a repo's CLAUDE.md, ported from Claude Code's built-in /init command.",
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
@@ -22,8 +22,8 @@
     "dsh",
     "dsh-plugin",
     "init",
-    "agents-md",
-    "opencode"
+    "claude-md",
+    "claude-code"
   ],
   "engines": {
     "node": ">=22"

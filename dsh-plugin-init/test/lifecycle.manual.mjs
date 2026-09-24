@@ -38,7 +38,7 @@ console.log("registered after plugin():", commands.definitions.map((item) => ite
 const definition = commands.definitions[0];
 const steered = [];
 const agent = {
-  session: { header: { cwd: "D:\\Workspace\\OpenSouces\\opencode" } },
+  session: { header: { cwd: "D:\\Workspace\\OpenSouces\\DshPlugins" } },
   steer: (message) => steered.push(message)
 };
 const result = definition.handler({ agent, rawInput: "focus on CI", signal: new AbortController().signal });
@@ -46,7 +46,7 @@ const text = steered[0].content[0].text;
 
 console.log("result.kind:", result.kind);
 console.log("steered messages:", steered.length);
-console.log("prompt names the worktree:", text.includes("OpenSouces\\opencode"));
+console.log("prompt names the worktree:", text.includes("OpenSouces\\DshPlugins"));
 console.log("prompt honors user input:", text.includes("focus on CI"));
 console.log("placeholders all resolved:", !text.includes("${path}") && !text.includes("$ARGUMENTS"));
 

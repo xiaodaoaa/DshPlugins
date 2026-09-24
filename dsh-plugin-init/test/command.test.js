@@ -54,7 +54,7 @@ function textOf(message) {
 test("the registered command declares name, description, and an input hint", () => {
   const { command } = load();
   assert.equal(command.name, "init");
-  assert.equal(command.description, "Create or update AGENTS.md for this repository");
+  assert.equal(command.description, "Create or update CLAUDE.md for this repository");
   assert.deepEqual(command.input, { hint: "[focus or constraints]" });
   assert.equal(typeof command.handler, "function");
 });
@@ -80,11 +80,12 @@ test("the handler steers one user message holding the rendered prompt", () => {
   assert.equal(message.content[0].type, "text");
 
   const text = textOf(message);
-  assert.match(text, /Create or update `AGENTS\.md` for this repository\./u);
+  assert.match(text, /create a CLAUDE\.md file/u);
   assert.match(text, /focus on CI/u);
   assert.doesNotMatch(text, /\$\{path\}/u, "the path placeholder is gone");
   assert.doesNotMatch(text, /\$ARGUMENTS/u, "the arguments placeholder is gone");
-  assert.match(text, /If `AGENTS\.md` already exists at D:\\repo/u);
+  assert.match(text, /If there's already a `CLAUDE\.md` at D:\\repo/u);
+  assert.match(text, /If an `AGENTS\.md` already exists at D:\\repo/u);
 
   assert.equal(result.kind, "success");
   assert.match(result.text, /D:\\repo/u);

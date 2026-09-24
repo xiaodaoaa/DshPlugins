@@ -19,12 +19,12 @@ test("module exports the cordis plugin shape", () => {
 test("the packaged template carries both placeholders", () => {
   assert.match(packaged, /\$\{path\}/u);
   assert.match(packaged, /\$ARGUMENTS/u);
-  assert.doesNotMatch(packaged, /\$\d/u, "opencode numbered placeholders are not part of this template");
+  assert.doesNotMatch(packaged, /\$\d/u, "numbered placeholders are not supported by renderPrompt");
 });
 
 test("renderPrompt substitutes the worktree path", () => {
-  const rendered = renderPrompt("Write AGENTS.md for ${path}.", "D:\\repo", "");
-  assert.equal(rendered, "Write AGENTS.md for D:\\repo.");
+  const rendered = renderPrompt("Write CLAUDE.md for ${path}.", "D:\\repo", "");
+  assert.equal(rendered, "Write CLAUDE.md for D:\\repo.");
 });
 
 test("renderPrompt substitutes user input for $ARGUMENTS", () => {
@@ -41,6 +41,6 @@ test("renderPrompt appends input when the template never mentions $ARGUMENTS", (
   assert.equal(renderPrompt("Do the thing.", "/repo", "   "), "Do the thing.");
 });
 
-test("renderPrompt substitutes every occurrence, matching opencode", () => {
+test("renderPrompt substitutes every occurrence", () => {
   assert.equal(renderPrompt("$ARGUMENTS and again $ARGUMENTS", "/repo", "x"), "x and again x");
 });
