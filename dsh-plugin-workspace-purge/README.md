@@ -31,8 +31,10 @@
 ## 安装
 
 ```sh
-dsh plugin --profile web add D:\Workspace\OpenSouces\DshPlugins\dsh-plugin-workspace-purge
+dsh plugin --profile desktop add D:\Workspace\OpenSouces\DshPlugins\dsh-plugin-workspace-purge
 ```
+
+（0.2.0-rc.2 的 DSH Desktop 在用的 profile 是 `desktop`；旧文档里的 `web` 已不再被使用。装完必须重启 DSH。）
 
 `dsh plugin` 会在 profile 目录里转发给 pnpm，然后依据已安装状态对账 `dsh.profile.bundles`，因此声明了 `dsh.bundle` 的包会自动加入层栈。等价的手工形式，在 profile 目录（`$DSH_HOME/profiles/<profile>`）里执行：
 
@@ -104,7 +106,7 @@ node --test test/bundle.test.js test/index.test.js test/purge.test.js
 ```sh
 # 真实 Cordis 生命周期：通过 Context.plugin() 挂载插件，inject 列表背后是真实的
 # Service 实例，发出真实的 domain/changed，并证明 fiber.dispose() 之后观察者确实没了。
-cd "$DSH_HOME/profiles/web"
+# 依赖（cordis / schemastery）已从 npm 装到本目录的 node_modules，所以直接跑即可。
 node "D:\Workspace\OpenSouces\DshPlugins\dsh-plugin-workspace-purge\test\lifecycle.manual.mjs"
 ```
 

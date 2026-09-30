@@ -54,6 +54,7 @@ node test/live-host.manual.mjs http://127.0.0.1:<port> <token>   # 真实运行�
 ## 契约（改之前先读这一节）
 
 - `cordis.patch.yml` 必须只插入一个条目 `id: init`，且 `lib/index.js` 导出的 `name = "init"` 必须与之一致；`inject` 只声明 `["commands"]`。
+- **`peerDependencies` 的两个 `@deepseek-ai/dsh-*` 范围是对外行为，不只是元数据。** 0.2.0-rc.2 的 profile 加载器会用 `evaluatePluginCompatibility()` 校验它们（只认 `@deepseek-ai/dsh` / `@deepseek-ai/dsh-*`），不匹配就把整个 bundle 跳过——`/init` 静默不注册，只在 stderr 留一句 `dsh: skipping profile bundle "dsh-plugin-init": ...`。保持 `^0.2.0-rc.2`；**别再写 `^0.1.x`**，`^0.1.5-rc.2` 展开为 `>=0.1.5-rc.2 <0.2.0-0`，不接受 `0.2.0-rc.2`。DSH 升到新的 0.2.x 时这两个范围要跟着走。
 - **绝不要把同一个 insert 再加进 profile 自己的补丁层**：两层是叠加而非覆盖，重复 id 会让整个 profile 启动失败（根 `CLAUDE.md` 有完整说明）。`test/bundle.test.js` 就是这里的守卫。
 - 注册包在 `ctx.effect(generator, "dsh-plugin-init: register /init")` 里，被 yield 的销毁器就是注销路径。`test/command.test.js` 断言这个标签字符串与恰好一个销毁器——改标签要同步改测试。
 - 处理器返回 `{ kind: "success" | "error", text }`。注册表的硬性要求：`kind: "error"` 时 `text` 非空、`input.hint` 非空字符串、`name` 匹配 `/^[a-z][a-z0-9_-]*$/u`。
@@ -71,10 +72,10 @@ node test/live-host.manual.mjs http://127.0.0.1:<port> <token>   # 真实运行�
 
 - `lib/template/initialize.txt` **就是** `/init` 要 steer 的那段提示词本身，改它等于改命令行为。
 - `README.md` 承载安装/配置接口和一张 Claude Code→DSH `/init` 映射表（`${path}`/`$ARGUMENTS` 是本插件加的，`AGENTS.md` 合并要求也是本插件加的，保守语气与强制前缀原样保留）。**改行为就同步改它。**
-- 运行中的 harness 通过 profile 里的 junction 加载的**就是这份工作树**，改完重启即可生效；若某次重装把它变回普通目录副本，比对两处 `lib/index.js` 的哈希或 mtime 即可确认。
+- 运行中的 harness 加载的是 profile 里 `node_modules/dsh-plugin-init` 指向的那一份。**当前这台机器上本插件并未安装**（0.2.0-rc.2 的 `desktop` profile 的 `dsh.profile.bundles` 里没有它），要生效得 `dsh plugin --profile desktop add <本目录>` 再重启 DSH；若某次重装把它变回普通目录副本，比对两处 `lib/index.js` 的哈希或 mtime 即可确认加载的是哪一份。
 
 ## 备注
 
-- Git 根在上一级 `D:\Workspace\OpenSouces\DshPlugins`（`origin` = `github.com/xiaodaoaa/DshPlugins`）。本目录只是其中一个插件，所以在插件目录里 `git status` 只会看到一个 `dsh-plugin-init/` 条目，一次提交会同时覆盖两个插件。
+- Git 根在上一级 `D:\Workspace\OpenSouces\DshPlugins`（`origin` = `github.com/xiaodaoaa/DshPlugins`）。本目录只是其中一个插件，所以在插件目录里 `git status` 只会看到一个 `dsh-plugin-init/` 条目，一次提交会同时覆盖三个插件。
 - `package.json#files` 列了 `LICENSE`，但工作树里没有该文件。
 - 本目录原先的 `AGENTS.md` 已合并进本文件：DSH 把同目录的 `AGENTS.md` 与 `CLAUDE.md` 当同级候选，两份并存且内容不同时会被双双注入。打包模板里那条合并要求说的就是这件事。

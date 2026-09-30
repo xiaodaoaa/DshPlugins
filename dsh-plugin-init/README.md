@@ -21,16 +21,22 @@
 ## 安装
 
 ```sh
-dsh plugin --profile <profile> add D:\Workspace\OpenSouces\DshPlugins\dsh-plugin-init
+dsh plugin --profile desktop add D:\Workspace\OpenSouces\DshPlugins\dsh-plugin-init
 ```
+
+（0.2.0-rc.2 的 DSH Desktop 在用的 profile 是 `desktop`；旧文档里的 `web` 已不再被使用。装完必须重启 DSH。）
 
 `dsh plugin --profile <name> <args...>` 是 pnpm 的薄转发器：先初始化缺失的 profile，在 profile 目录里执行 `pnpm <args...>`，再依据已安装状态对账 `dsh.profile.bundles`（解析到声明了 `dsh.bundle` 的依赖自动加入层栈，已移除或不再声明 `dsh.bundle` 的自动退出），所以不必手工改 bundles 列表。相对路径可以放心用——`.`、`../plugin` 及其 `file:`/`link:` 形式会被锚定到你调用 `dsh` 时的目录，不会在 profile 里自链接。
 
 等价的手工形式是在 profile 目录（`$DSH_HOME/profiles/<profile>`）里 `pnpm add <本目录的绝对路径>`，然后自己把 `"dsh-plugin-init"` 加进该 profile `package.json` 的 `dsh.profile.bundles`。重启 harness，`/init` 即可用。
 
-### 仓库搬家后要重装
+### peer 版本必须匹配运行中的 DSH
 
-profile 记的是安装当时的路径（这台机器上是 `link:D:/Workspace/OpenSouces/dsh-plugin-init`）。仓库搬进 `DshPlugins/` 之后那个路径已经不存在，而 `profiles/<profile>/node_modules/dsh-plugin-init` 里留着一份**普通目录副本**——不是 junction，`fsutil reparsepoint query <该目录>` 会报 not a reparse point——运行中的 harness 加载的正是这份副本。所以改了 `lib/` 之后 `/init` 行为没变时，先用当前路径重装再重启；想确认装的是不是当前工作树，比对两处 `lib/index.js` 的哈希即可。
+`peerDependencies` 里的 `@deepseek-ai/dsh-commands` / `@deepseek-ai/dsh-llm` 不只是元数据：0.2.0-rc.2 的 profile 加载器会用 `evaluatePluginCompatibility()` 逐个校验名字形如 `@deepseek-ai/dsh-*` 的 peer，**不匹配的 bundle 会被静默跳过**（stderr 一句 `dsh: skipping profile bundle "dsh-plugin-init": ...`），`/init` 也就不会注册。注意 `^0.1.5-rc.2` 展开为 `>=0.1.5-rc.2 <0.2.0-0`，**不接受** `0.2.0-rc.2`；本仓库已改为 `^0.2.0-rc.2`。临时放行可在 profile 里写 `compatibility.json`（精确版本号），见根 `CLAUDE.md`。
+
+### 重新安装的场景
+
+profile 记的是安装当时的路径。仓库搬家、或 DSH 升级（0.2.0-rc.2 的升级过程把旧 `profiles/*/dsh.profile.bundles` 里列出的插件整个清掉了）之后，`profiles/<profile>/node_modules/dsh-plugin-init` 可能不存在，也可能是一份**普通目录副本**而不是指向工作树的链接——运行中的 harness 加载的正是那一份。所以改了 `lib/` 之后 `/init` 行为没变时，先用当前路径重装再重启；想确认装的是不是当前工作树，比对两处 `lib/index.js` 的哈希即可。
 
 ### 不要同时从 profile 自己的补丁层插入它
 
@@ -90,7 +96,7 @@ node --test test/bundle.test.js test/index.test.js test/command.test.js
 
 这些套件覆盖 `renderPrompt`、模块的插件形态、通过 stub Cordis 上下文与替身 agent 驱动的真实处理器，以及 bundle 补丁（包括针对已安装 profile 的重复条目 id 守卫）。
 
-还有两个手工脚本更进一步，它们有意不属于 `node --test`：`lifecycle.manual.mjs` 需要 harness 包可解析（本仓库 `node_modules/@deepseek-ai/` 里指向 `$DSH_HOME/profiles/node_modules/@deepseek-ai/` 的 junction 就是为此存在的），`live-host.manual.mjs` 需要一个运行中的宿主和它的 `?token=`，缺参数时会以 2 退出：
+还有两个手工脚本更进一步，它们有意不属于 `node --test`：`lifecycle.manual.mjs` 需要 harness 包可解析（本目录 `node_modules/@deepseek-ai/` 下的 `cordis`、`schemastery`、`dsh-commands`、`dsh-llm` 就是从 npm 装来的 0.2.0-rc.2 真实包），`live-host.manual.mjs` 需要一个运行中的宿主和它的 `?token=`，缺参数时会以 2 退出：
 
 ```sh
 # 真实 Cordis 生命周期：通过 Context.plugin() 挂载插件，因此它证明了激活、
