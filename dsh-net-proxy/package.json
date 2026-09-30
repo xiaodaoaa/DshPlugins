@@ -1,0 +1,74 @@
+{
+  "name": "dsh-net-proxy",
+  "version": "0.7.20",
+  "description": "DeepSeek Harness network-proxy plugin: route the agent's own network requests (web_search / web_fetch / external APIs) through a configured HTTP/HTTPS-CONNECT/SOCKS5 proxy — both the global fetch wrapper and the harness proxy layer that web_fetch actually uses — with in-memory traffic logging (previews, counts, byte totals) and a settings UI.",
+  "type": "module",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "lib",
+    "README.md",
+    "LICENSE",
+    "cordis.patch.yml"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "proxy",
+    "http",
+    "socks5",
+    "network"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mafeis/dsh-net-proxy.git"
+  },
+  "homepage": "https://github.com/mafeis/dsh-net-proxy",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "inject": [
+        "react",
+        "react/jsx-runtime",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-client-ui-primitives": "^0.2.0-rc.2",
+    "@deepseek-ai/dsh-http-proxy": "^0.2.0-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-http-proxy": {
+      "optional": true
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@deepseek-ai/dsh-http-proxy": "^0.2.0-rc.2",
+    "@eslint/js": "^10.0.1",
+    "eslint": "^9.39.5",
+    "globals": "^17.11.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "undici": "^8.10.0"
+  }
+}

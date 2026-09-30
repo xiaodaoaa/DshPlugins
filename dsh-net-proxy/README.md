@@ -1,0 +1,82 @@
+# dsh-net-proxy
+
+[![awesome · DSH plugin](https://awesome-dsh-plugin.com/badge.svg)](https://awesome-dsh-plugin.com)
+
+DeepSeek Harness 网络代理插件：让 **agent 自己发起的网络请求**（`web_search` / `web_fetch` / 外部 API）走你配置的 HTTP / HTTPS-CONNECT / SOCKS5 代理，配置持久化、启动即自动生效，并提供可视化设置页。
+
+## 安装
+
+```bash
+# 本仓库 vendored 的那份（0.2.0-rc.2 的 DSH Desktop 在用的 profile 是 desktop）
+dsh plugin --profile desktop add D:\Workspace\OpenSouces\DshPlugins\dsh-net-proxy
+
+# 或上游发布版
+dsh plugin --profile desktop add github:mafeis/dsh-net-proxy
+```
+
+安装后重启 DSH Desktop，在 设置 → 网络代理 里启用并填写代理地址（如 `127.0.0.1:7890`）。
+
+> 本仓库里的这份已按 **DSH Desktop 0.2.0-rc.2** 适配：`peerDependencies` 的 `@deepseek-ai/dsh-*` 范围收窄到 `^0.2.0-rc.2`（`dsh-client-ui-primitives`、`dsh-http-proxy`），`engines.node` 提到 `>=22`，并修正了 harness 代理层定位 `app.asar` 内模块的路径（见「技术说明」）。**不保留对 0.1.x 的兼容。**
+
+也可手动在 profile 的 `cordis.patch.yml` 加入：
+
+```yaml
+- insert:
+    - id: net-proxy
+      name: 'dsh-net-proxy'
+```
+
+## 主要功能
+
+**双通道代理生效**：包装 agent 进程的全局 `fetch`（手写 HTTP/SOCKS5 转发，零第三方依赖），同时把生效策略同步安装进 `web_fetch` 实际使用的 harness 代理层——两类请求全覆盖，停用/卸载完整还原。
+
+**跟随系统代理**：每 3 秒读取系统代理设置，自动启停、自动跟随端口变化（v2rayN / Clash 切换无需改配置）；系统关闭时自动直连；Windows `ProxyOverride` 绕过列表自动并入 `NO_PROXY`。
+
+**请求日志**：经插件代理的每条请求一条记录——方法、URL、状态码、耗时、上下行流量、发送/返回内容预览；全部内存环形缓冲（最近 500 条），不落盘、不外发，占用有硬上限（< 1MB，可熔断）。
+
+**本地中继**：`web_fetch` 流量经本地回环中继过插件之手——可观测、可统计，同时解除 harness 层的 SOCKS5 限制（`socks5` 配置现在全覆盖）。
+
+**流量图表**：请求日志实时聚合为时间线 / 状态分布 / 耗时分布 / 通道分布 / 目标主机 TOP 10 五张自绘图表，前端纯函数聚合、零新增存储、5 秒刷新。
+
+**JSON 详情**：日志点条目展开关键信息，「详情」弹窗内查看完整请求/响应内容；JSON 体自动渲染为可折叠树视图（键左对齐、缩进网格、长字符串点击展开全文），完整内容按需加载（单条 ≤256KB / 总池 ≤4MB 硬上限）。
+
+**设置页**：一个一级菜单 + 页内二级标签（代理设置 / 请求日志 / 流量图表），连通性探测、地址过滤、渐进加载；配色全部走宿主主题变量，视觉与宿主一致。
+
+## 最近调整
+
+- **总开关语义明确**：「代理已启用」徽章只反映「启用代理」总开关；跟随模式下横幅格式统一「（跟随系统）： 地址」（地址为真实读取的系统代理），生效与否只用红/绿横幅色表达。
+- **开关即时生效**：「启用代理」「跟随系统」勾选立即应用；「保存」按钮只负责地址/端口等输入项。
+- **健壮性专项（全量代码审查，11 处）**：连接失败时流量日志条目收尾（防 2000 条熔断后日志永久失效）；配置文件坏端口/坏协议在加载期拦截并回退默认（不再每条请求报连接错）；中继背压与解压泵挂死兜底；设置页保存不再重置手改的日志配置；修复 JSON 长字符串条件 Hook 可能导致设置页白屏。
+- **修复 harness 层误杀本地中继**（影响 v0.5.0–v0.7.0）：「先还原再装」的中间步骤把刚启动的中继停掉，策略指向死端口——日志与自检正常但 `web_fetch` 全断。已修复并新增生命周期回归测试。
+- **新增中继存活看护**：中继意外停止时 5 秒内自动重装策略（新端口重指），不再出现指向死端口的静默断网。
+- **日志详情弹窗**：点击条目行内展开关键信息，点「详情」弹出居中详情卡片（Esc/遮罩关闭），JSON 树行式布局重做、长 URL 单行截断。
+- **TOP 主机 8 → 10**；配色全面回归宿主主题变量（撤销全部自定硬编码色）。
+
+修复中继意外关闭后状态假活导致看护永不自愈的问题；跟随模式语义修正：总开关=硬闸（关=永不转发），系统代理关闭时回退手填地址而非强制直连。
+- **中继端口终身制**：中继端口在插件进程内终身不变（总开关切换/策略重装不再换端口，仅卸载时关闭），保证第三方单例代理组件的地址引用永不过期。完整变更历史见 [GitHub Releases](https://github.com/mafeis/dsh-net-proxy/releases)。
+
+## 配置字段（net-proxy.json）
+
+| 字段 | 默认 | 含义 |
+|---|---|---|
+| `enabled` | `false` | 是否启用代理 |
+| `followSystem` | `false` | 跟随系统代理 |
+| `protocol` | `http` | `http`（含 CONNECT 隧道）或 `socks5` |
+| `host` / `port` | `127.0.0.1` / `7890` | 代理地址 |
+| `username` / `password` | 空 | 可选认证 |
+| `noProxy` | `["127.0.0.1","localhost","::1"]` | 命中则直连 |
+| `logEnabled` | `true` | 请求日志开关（关闭后不再记录新条目） |
+| `logPreviewBytes` | `512` | 每侧内容预览的最大字节数（0–8192，0 = 不记内容） |
+
+## 技术说明
+
+- **harness 代理层**：`web_fetch` 的出口不经过 `globalThis.fetch`，由 harness 的代理策略模块 `@deepseek-ai/dsh-http-proxy` 决定走向（[#5](https://github.com/mafeis/dsh-net-proxy/issues/5)）。插件定位 harness 已加载的**同一模块实例**（写入的 `active/installed` 是模块级状态，不同实例各写各的），停用与卸载还原到安装前状态。
+  - 解析顺序：① `process.resourcesPath` 下的 `app.asar/dsh/node_modules/…`（0.2.0-rc.2 的 Electron 布局——harness 自己的包在 `dsh/` 这一层下面，而 `app.asar/node_modules/` 只放 Electron 主程序的依赖）；② 从 harness 主脚本 `process.argv[1]` 解析；③ bare specifier。三者都失败时优雅降级（仅 `web_fetch` 不跟随，`fetch` 包装层不受影响）。
+  - 本地验证：`node --test tests/harness-proxy-integration.test.mjs` 会对着真实 `@deepseek-ai/dsh-http-proxy` 跑「装策略 → `proxyRouteFor` 立刻可见 → 还原回直连」整条链路。
+- **协议限制**：harness 代理层只接受 `http://` 代理 URL。协议选 `socks5` 时由本地中继桥接（v0.5.0 起），`socks5` 配置两层全覆盖；PAC 模式暂不支持自动跟随，回退手动配置并提示。
+- **隐私边界**：日志与完整内容只存内存、不落盘、不外发；TLS 隧道内容加密不可见（仅记目标与字节数）；二进制内容不存（只记类型与大小）；清空日志即彻底消失。
+- **零运行时依赖**：代理栈、中继、日志、图表全部 Node 原生模块 + 自绘实现，发布包 72.6 KB。
+
+## 许可证
+
+MIT
